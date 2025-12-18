@@ -8,8 +8,31 @@
     padding: 0 1em;
 
     & > #brand {
-      transform: scale(1.4);
-      transform-origin: center left;
+      text-decoration: none;
+
+      & > img {
+        transform: scale(1.4);
+        transform-origin: center left;
+      }
+
+      & > span {
+        margin-left: 0.6em;
+        color: $text;
+      }
+
+      &:hover,
+      &:visited {
+        & > span {
+          text-decoration: none;
+        }
+      }
+    }
+
+    & > .brand-by {
+      font-family: $utilityText;
+      font-size: 1.2em;
+      margin-right: 0.2em;
+      transform: translate(-0.3em, 0.15em);
     }
 
     & > .knob {
@@ -271,6 +294,17 @@
           }
         }
       }
+    }
+  }
+
+  dialog.anonymizer-help {
+    max-height: 80vh;
+    overflow: auto;
+    top: 50%;
+
+    img {
+      margin-top: 3em;
+      width: 200px;
     }
   }
 }

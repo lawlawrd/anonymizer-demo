@@ -6,6 +6,7 @@ import { createAnonymizeRouter } from "./anonymize.js";
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const HOST = process.env.HOST || "0.0.0.0";
 const PORT = process.env.PORT || 9628;
 const PRESIDIO_ANALYZER_URL =
   process.env.PRESIDIO_ANALYZER_URL || "http://localhost:5002";
@@ -29,9 +30,9 @@ app.use(
 
 // Root page that will host the Anonymizer React app.
 app.get(["/", "/anonymizer"], (_req, res) => {
-  res.render("template", { title: "Anonymizer" });
+  res.render("template", { title: "Anonymizer by Law Law" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Anonymizer server listening on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Anonymizer server listening on http://${HOST}:${PORT}`);
 });

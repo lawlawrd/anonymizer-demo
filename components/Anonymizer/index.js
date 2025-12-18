@@ -515,6 +515,7 @@ const Anonymizer = () => {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
     return stored === THEME_DARK ? THEME_DARK : THEME_LIGHT;
   });
+  const [helpDialogActive, setHelpDialogActive] = useState(false);
 
   const editorContentRef = useRef(null);
   const selectAllFindingsRef = useRef(null);
@@ -550,6 +551,10 @@ const Anonymizer = () => {
   }, [localizedEntityOptions]);
   const brandImageSrc =
     theme === THEME_DARK ? "/images/face-white.svg" : "/images/face-black.svg";
+  const lawlawImageSrc =
+    theme === THEME_DARK
+      ? "/images/lawlaw-dark.svg"
+      : "/images/lawlaw-light.svg";
 
   const hasContent = editorState.text.trim().length > 0;
   const selectedBuiltinEntityTypes = useMemo(
@@ -814,6 +819,22 @@ const Anonymizer = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [suggestionsOpen]);
+
+  useEffect(() => {
+    if (!helpDialogActive) return;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setHelpDialogActive(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [helpDialogActive]);
 
   useEffect(() => {
     if (savedSearchQuery.trim().length > 0) {
@@ -1197,94 +1218,6 @@ const Anonymizer = () => {
       nerModel,
       selectedLanguage,
       threshold,
-    ],
-  );
-
-  const handleSavedSearchChange = useCallback((event) => {
-    setSavedSearchQuery(event.target.value);
-  }, []);
-
-  const handleSavedSearchFocus = useCallback(() => {
-    setSuggestionsOpen(true);
-  }, []);
-
-  const handleSuggestionKeyDown = useCallback(
-    (event, anonymizationId) => {
-      if (
-        event.key === "Enter" ||
-        event.key === " " ||
-        event.key === "Space" ||
-        event.key === "Spacebar"
-      ) {
-        event.preventDefault();
-        handleLoadSavedAnonymization(anonymizationId);
-      }
-    },
-    [handleLoadSavedAnonymization],
-  );
-
-  const handleSaveCurrentResult = useCallback(async () => {
-    if (!currentAnonymizationPayload) {
-      return;
-    }
-
-    const signature = buildResultSignature(currentAnonymizationPayload);
-    if (!signature || signature === lastSavedSignature) {
-      return;
-    }
-
-    setIsSavingAnonymization(true);
-    setSaveStatusMessage("");
-    setSaveErrorMessage("");
-
-    try {
-      const response = await fetch(API_ROUTES.saved, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(currentAnonymizationPayload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Save failed with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (!data?.anonymization) {
-        throw new Error("Invalid save response.");
-      }
-
-      setLastSavedSignature(signature);
-      setCurrentResultSignature(signature);
-      setSaveStatusMessage("Saved!");
-      fetchSavedSuggestions(savedSearchQuery);
-    } catch (error) {
-      console.error("Failed to save anonymization", error);
-      setSaveErrorMessage("Failed to save anonymization.");
-    } finally {
-      setIsSavingAnonymization(false);
-    }
-  }, [
-    currentAnonymizationPayload,
-    lastSavedSignature,
-    savedSearchQuery,
-    fetchSavedSuggestions,
-  ]);
-
-  const canSaveCurrentResult = useMemo(
-    () =>
-      Boolean(
-        currentAnonymizationPayload &&
-          currentResultSignature &&
-          currentResultSignature !== lastSavedSignature &&
-          !isSavingAnonymization,
-      ),
-    [
-      currentAnonymizationPayload,
-      currentResultSignature,
-      lastSavedSignature,
-      isSavingAnonymization,
     ],
   );
 
@@ -1781,12 +1714,31 @@ const Anonymizer = () => {
       <header className="navbar anonymizer-navbar">
         <a href="/" id="brand">
           <img src={brandImageSrc} />
+          <span>Anonymizer</span>
         </a>
+        <span className="brand-by"> by </span>
+        <a href="https://lawlaw.law" id="brand">
+          <img src={lawlawImageSrc} title="Law Law" />
+        </a>
+
         <div className="spacer" />
+        <a
+          role="button"
+          tabIndex={0}
+          className={`knob`}
+          style={{ margin: "1px 0 0 .5rem" }}
+          onClick={() => setHelpDialogActive(true)}
+        >
+          <svg className="icon">
+            <use xlinkHref="/images/icons.svg#help" />
+          </svg>
+          Help
+        </a>
+
         <a
           href="https://github.com/lawlawrd/anonymizer"
           className={`knob`}
-          style={{ margin: "1px 0 0 .5rem" }}
+          style={{ margin: "1px 0 0 1rem" }}
           target="_blank"
         >
           <svg className="icon">
@@ -2395,6 +2347,104 @@ const Anonymizer = () => {
             </div>
           </div>
         </aside>
+        {helpDialogActive ? (
+          <>
+            <dialog open={true} className="anonymizer-help">
+              <a
+                className="control close"
+                tabIndex="0"
+                onClick={() => setHelpDialogActive(false)}
+              >
+                <svg className="icon">
+                  <use xlinkHref="/images/icons.svg#clear"></use>
+                </svg>
+              </a>
+
+              <h2>How to use the Anonymizer</h2>
+              <p>
+                The Anonymizer removes or masks personal and sensitive data from
+                your text. Paste content on the left, tune the settings in the
+                sidebar, then run “Anonymize” to get redacted HTML and plain
+                text output.
+              </p>
+
+              <h3>Presidio under the hood</h3>
+              <p>
+                This tool calls{" "}
+                <a href="https://microsoft.github.io/presidio/" target="_blank">
+                  Presidio
+                </a>{" "}
+                for entity recognition. Available language models: English
+                (en_core_web_lg) and Dutch (nl_core_news_lg). Additional models
+                are listed for future use.
+              </p>
+              <p>
+                You can run the Anonymizer locally via Docker:
+                <br />
+                <code>docker run -p 3000:3000 lawlawrd/anonymizer</code>
+              </p>
+
+              <h3>Understanding the results</h3>
+              <ul>
+                <li>
+                  <strong>Findings table</strong>: shows detected entities, the
+                  recognizer and pattern used, and lets you toggle redaction per
+                  row.
+                </li>
+                <li>
+                  <strong>Acceptance threshold</strong>: minimum confidence
+                  (0-1) required before a finding is redacted.
+                </li>
+                <li>
+                  <strong>Allowlist / Denylist</strong>: terms to always keep
+                  visible or always redact (comma or newline separated).
+                </li>
+                <li>
+                  <strong>Entity filter</strong>: choose which entity types
+                  Presidio should search for; use the search box or “More
+                  options” to manage the list quickly.
+                </li>
+                <li>
+                  <strong>Presets</strong>: save/load your current model,
+                  threshold, lists, and entity filters for reuse.
+                </li>
+              </ul>
+
+              <h3>Data and privacy</h3>
+              <p>
+                Anonymization runs in-memory; data is not persisted on the
+                server. Presets are stored only in your browser (localStorage).
+                Clearing storage or switching browsers/devices will lose your
+                presets.
+              </p>
+
+              <h3>Feedback</h3>
+              <p>
+                Questions or suggestions? Email{" "}
+                <a href="mailto:ben@lawlaw.law">ben@lawlaw.law</a> or contribute
+                on{" "}
+                <a
+                  href="https://github.com/lawlawrd/anonymizer"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  GitHub
+                </a>
+                .
+              </p>
+
+              <p style={{ textAlign: "center" }}>
+                <a href="https://lawlaw.law" id="brand">
+                  <img src={lawlawImageSrc} title="Law Law" />
+                </a>
+              </p>
+            </dialog>
+            <div
+              className="backdrop"
+              onClick={() => setHelpDialogActive(false)}
+            />
+          </>
+        ) : undefined}
       </main>
     </>
   );
