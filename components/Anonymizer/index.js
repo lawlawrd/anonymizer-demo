@@ -23,6 +23,7 @@ const API_BASE_URL = "/api";
 const API_ROUTES = {
   anonymize: `${API_BASE_URL}/anonymize`,
   saved: `${API_BASE_URL}/anonymize/saved`,
+  demoContent: `${API_BASE_URL}/demo-content`,
 };
 const THEME_STORAGE_KEY = "anonymizerTheme";
 const THEME_LIGHT = "light";
@@ -495,6 +496,8 @@ const Anonymizer = () => {
   const [savedSearchQuery, setSavedSearchQuery] = useState("");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [editorOverride, setEditorOverride] = useState(null);
+  const [demoContent, setDemoContent] = useState([]);
+  const [selectedDemoId, setSelectedDemoId] = useState("");
   const [openFilters, setOpenFilters] = useState(
     JSON.parse(localStorage.getItem("openFilters")) || ["ner-model"],
   );
@@ -556,7 +559,6 @@ const Anonymizer = () => {
       ? "/images/lawlaw-dark.svg"
       : "/images/lawlaw-light.svg";
 
-  const hasContent = editorState.text.trim().length > 0;
   const selectedBuiltinEntityTypes = useMemo(
     () =>
       ENTITY_TYPE_OPTIONS.filter(
@@ -645,6 +647,15 @@ const Anonymizer = () => {
 
     return presets.find((preset) => preset.id === parsedId) ?? null;
   }, [presets, selectedPresetId]);
+  const selectedDemo = useMemo(() => {
+    if (!selectedDemoId) {
+      return null;
+    }
+    return (
+      demoContent.find((item) => String(item.id) === String(selectedDemoId)) ??
+      null
+    );
+  }, [demoContent, selectedDemoId]);
 
   useEffect(() => {
     setMoreEntityOptions(false);
@@ -877,6 +888,34 @@ const Anonymizer = () => {
       console.warn("Failed to persist entity type selection", storageError);
     }
   }, [selectedBuiltinEntityTypes]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadDemoContent = async () => {
+      try {
+        const response = await fetch(API_ROUTES.demoContent);
+        if (!response.ok) {
+          throw new Error(`Failed to load demo content (${response.status}).`);
+        }
+        const data = await response.json();
+        if (!active) return;
+        const items = Array.isArray(data?.demoContent) ? data.demoContent : [];
+        setDemoContent(items);
+      } catch (error) {
+        console.error("Failed to load demo content", error);
+        if (active) {
+          setErrorMessage("Failed to load demo content.");
+        }
+      }
+    };
+
+    loadDemoContent();
+
+    return () => {
+      active = false;
+    };
+  }, []);
   const findings = useMemo(() => {
     if (!Array.isArray(results.entities)) return [];
 
@@ -959,14 +998,14 @@ const Anonymizer = () => {
     async (event) => {
       event.preventDefault();
 
-      if (!hasContent) {
-        setErrorMessage("Please provide some text first.");
+      if (!selectedDemo) {
+        setErrorMessage("Please select a demo text first.");
         return;
       }
 
       const submission = {
-        html: editorState.html,
-        text: editorState.text,
+        html: selectedDemo.html,
+        text: selectedDemo.text,
       };
 
       const requestLanguage =
@@ -988,6 +1027,7 @@ const Anonymizer = () => {
           },
           body: JSON.stringify({
             text: submission.text,
+            demoId: selectedDemo.id,
             language: requestLanguage,
             nerModel,
             threshold,
@@ -998,6 +1038,15 @@ const Anonymizer = () => {
         });
 
         if (!response.ok) {
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            const payload = await response.json();
+            const message =
+              typeof payload?.error === "string"
+                ? payload.error
+                : "Anonymization request failed.";
+            throw new Error(message);
+          }
           const message = await response.text();
           throw new Error(message || "Anonymization request failed.");
         }
@@ -1059,8 +1108,10 @@ const Anonymizer = () => {
         setStatusMessage("Done!");
       } catch (error) {
         console.error(error);
+        const fallback =
+          "Anonymization failed. Ensure the Presidio services are reachable.";
         setErrorMessage(
-          "Anonymization failed. Ensure the Presidio services are reachable.",
+          error instanceof Error && error.message ? error.message : fallback,
         );
         setStatusMessage("");
       } finally {
@@ -1068,9 +1119,7 @@ const Anonymizer = () => {
       }
     },
     [
-      editorState.html,
-      editorState.text,
-      hasContent,
+      selectedDemo,
       nerModel,
       threshold,
       allowlistText,
@@ -1223,6 +1272,8 @@ const Anonymizer = () => {
 
   const handleReset = useCallback(() => {
     setEditorState({ ...INITIAL_EDITOR_STATE });
+    setEditorOverride({ ...INITIAL_EDITOR_STATE, version: Date.now() });
+    setSelectedDemoId("");
     setResults({
       anonymizedText: "",
       anonymizedHtml: "",
@@ -1249,6 +1300,54 @@ const Anonymizer = () => {
     setSuggestionsOpen(false);
     setIsSavingAnonymization(false);
   }, []);
+
+  const handleDemoChange = useCallback(
+    (event) => {
+      const nextId = event.target.value;
+      setSelectedDemoId(nextId);
+      setStatusMessage("");
+      setErrorMessage("");
+      setResults({
+        anonymizedText: "",
+        anonymizedHtml: "",
+        entities: [],
+        items: [],
+      });
+      setEntityToggles({});
+      setDisplayHtml("");
+      setLastSubmittedText("");
+      setLastSubmittedHtml("");
+      setCurrentAnonymizationPayload(null);
+      setCurrentResultSignature("");
+      setLastSavedSignature("");
+
+      if (!nextId) {
+        setEditorState({ ...INITIAL_EDITOR_STATE });
+        setEditorOverride({ ...INITIAL_EDITOR_STATE, version: Date.now() });
+        return;
+      }
+
+      const demo = demoContent.find(
+        (item) => String(item.id) === String(nextId),
+      );
+      if (!demo) {
+        setEditorState({ ...INITIAL_EDITOR_STATE });
+        setEditorOverride({ ...INITIAL_EDITOR_STATE, version: Date.now() });
+        return;
+      }
+
+      setEditorOverride({
+        html: demo.html,
+        text: demo.text,
+        version: Date.now(),
+      });
+      setEditorState({
+        html: demo.html,
+        text: demo.text,
+      });
+    },
+    [demoContent],
+  );
 
   useEffect(() => {
     if (!lastSubmittedHtml) {
@@ -1722,6 +1821,21 @@ const Anonymizer = () => {
         </a>
 
         <div className="spacer" />
+
+        <select
+          id="demo-texts"
+          value={selectedDemoId}
+          onChange={handleDemoChange}
+          style={{ marginTop: ".2em" }}
+        >
+          <option value="">Select demo text...</option>
+          {demoContent.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.title} ({item.language})
+            </option>
+          ))}
+        </select>
+
         <a
           role="button"
           tabIndex={0}
@@ -1786,6 +1900,7 @@ const Anonymizer = () => {
               resetState={resetSignal}
               externalState={editorOverride}
               placeholder="Write or paste the text you want to anonymize..."
+              editable={false}
             />
           </div>
 

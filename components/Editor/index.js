@@ -96,7 +96,9 @@ const Editor = ({
   syncState,
   placeholder,
   externalState,
+  editable = true,
 }) => {
+  const isEditable = editable !== false;
   let extensions = [
     Blockquote,
     Bold,
@@ -179,6 +181,7 @@ const Editor = ({
   const editor = useEditor({
     extensions,
     content: initState.html,
+    editable: isEditable,
   });
 
   const [linkActive, setLinkActive] = useState(false);
@@ -220,6 +223,7 @@ const Editor = ({
 
   useEffect(() => {
     if (editor) {
+      editor.setEditable(isEditable);
       editor.on("update", ({ editor }) => {
         updateState({
           html: editor.getHTML(),
@@ -258,7 +262,7 @@ const Editor = ({
           });
       });
     }
-  }, [editor]);
+  }, [editor, isEditable]);
 
   useEffect(() => {
     if (editor) {
@@ -281,7 +285,7 @@ const Editor = ({
 
   return (
     <div className="editor-wrapper">
-      {editorSize && editorSize != "mini" && (
+      {isEditable && editorSize && editorSize != "mini" && (
         <EditorToolbar
           {...{
             editor,
@@ -293,7 +297,7 @@ const Editor = ({
         />
       )}
 
-      {editor && (!editorSize || editorSize == "large") && (
+      {isEditable && editor && (!editorSize || editorSize == "large") && (
         <EditorTooltip
           {...{
             editor,
@@ -306,9 +310,11 @@ const Editor = ({
         />
       )}
       <EditorContent {...{ editor }} className="editor-content" />
-      <EditorColorPicker
-        {...{ editor, colorPickerActive, setColorPickerActive }}
-      />
+      {isEditable && (
+        <EditorColorPicker
+          {...{ editor, colorPickerActive, setColorPickerActive }}
+        />
+      )}
     </div>
   );
 };

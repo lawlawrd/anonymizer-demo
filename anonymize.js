@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Router } from "express";
 
 const DEFAULT_ACCEPTANCE_THRESHOLD = 0.5;
@@ -9,6 +12,83 @@ const NER_MODEL_LANGUAGE_MAP = {
   nl_core_news_lg: "nl",
   de_core_news_lg: "de",
   fr_core_news_lg: "fr",
+};
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DEMO_CONTENT_PATH = path.join(__dirname, "demo-content.json");
+
+const decodeHtmlEntities = (value) => {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+};
+
+const htmlToText = (html) => {
+  if (typeof html !== "string") {
+    return "";
+  }
+  let output = html;
+  output = output.replace(/<br\s*\/?>/gi, "\n");
+  output = output.replace(
+    /<\/(p|div|h[1-6]|li|ul|ol|table|thead|tbody|tr|td|th|blockquote)>/gi,
+    "\n",
+  );
+  output = output.replace(/<[^>]+>/g, "");
+  output = decodeHtmlEntities(output);
+  output = output.replace(/\r\n/g, "\n");
+  output = output.replace(/\n{3,}/g, "\n\n");
+  return output.trim();
+};
+
+const normalizeWhitespace = (value) =>
+  typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+
+const loadDemoContent = () => {
+  try {
+    const raw = fs.readFileSync(DEMO_CONTENT_PATH, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed;
+  } catch (error) {
+    console.error("Failed to load demo content", error);
+    return [];
+  }
+};
+
+const DEMO_CONTENT = loadDemoContent();
+const DEMO_CONTENT_ENTRIES = DEMO_CONTENT.map((item) => {
+  const html = typeof item?.html === "string" ? item.html : "";
+  const text = htmlToText(html);
+  return {
+    ...item,
+    text,
+    normalizedText: normalizeWhitespace(text),
+  };
+});
+
+const matchDemoContent = (text) => {
+  if (DEMO_CONTENT_ENTRIES.length === 0) {
+    return null;
+  }
+  const normalized = normalizeWhitespace(text);
+  if (!normalized) {
+    return null;
+  }
+  return (
+    DEMO_CONTENT_ENTRIES.find(
+      (entry) => entry.normalizedText === normalized,
+    ) ?? null
+  );
 };
 
 const normalizeListTerm = (value) =>
@@ -286,6 +366,13 @@ export const createAnonymizeRouter = ({ analyzerUrl, anonymizerUrl }) => {
   const router = Router();
   const anonymizeRoute = "/anonymize";
 
+  router.get("/demo-content", (_req, res) => {
+    const payload = DEMO_CONTENT_ENTRIES.map(
+      ({ normalizedText, ...entry }) => entry,
+    );
+    res.json({ demoContent: payload });
+  });
+
   router.use(ensureAuthenticated);
 
   router.get("/presets", (req, res) => {
@@ -517,8 +604,19 @@ export const createAnonymizeRouter = ({ analyzerUrl, anonymizerUrl }) => {
       return;
     }
 
+    const matchedDemo = matchDemoContent(text);
+    if (!matchedDemo) {
+      res.status(400).json({
+        error:
+          "Demo text was modified. Please reselect a demo text from the list.",
+      });
+      return;
+    }
+
+    const effectiveText = matchedDemo.text;
+
     const payload = {
-      text,
+      text: effectiveText,
       language: resolvedLanguage,
       return_decision_process: true,
     };
@@ -582,10 +680,13 @@ export const createAnonymizeRouter = ({ analyzerUrl, anonymizerUrl }) => {
       });
 
       const allowDenyFiltered = thresholdFiltered.filter((entity) =>
-        shouldIncludeEntity(entity, text, allowlistSet, denylistSet),
+        shouldIncludeEntity(entity, effectiveText, allowlistSet, denylistSet),
       );
 
-      const denylistEntities = findDenylistEntities(text, denylistSet);
+      const denylistEntities = findDenylistEntities(
+        effectiveText,
+        denylistSet,
+      );
       const filteredAnalyzerResults = mergeEntities(
         allowDenyFiltered,
         denylistEntities,
@@ -599,7 +700,7 @@ export const createAnonymizeRouter = ({ analyzerUrl, anonymizerUrl }) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            text,
+            text: effectiveText,
             analyzer_results: filteredAnalyzerResults,
           }),
         },
