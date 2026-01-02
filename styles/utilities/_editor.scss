@@ -66,6 +66,9 @@
     border-bottom: 1px solid $crust;
     height: $inputHeight;
     padding: 0 0.4em;
+    &.is-disabled {
+      pointer-events: none;
+    }
 
     & > .dropdown > button {
       height: calc($inputHeight - 1px);

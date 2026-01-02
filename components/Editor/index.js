@@ -99,6 +99,7 @@ const Editor = ({
   editable = true,
 }) => {
   const isEditable = editable !== false;
+  const toolbarDisabled = !isEditable;
   let extensions = [
     Blockquote,
     Bold,
@@ -285,7 +286,7 @@ const Editor = ({
 
   return (
     <div className="editor-wrapper">
-      {isEditable && editorSize && editorSize != "mini" && (
+      {editorSize && editorSize != "mini" && (
         <EditorToolbar
           {...{
             editor,
@@ -293,6 +294,7 @@ const Editor = ({
             activeBlock,
             activeAlign,
             setColorPickerActive,
+            toolbarDisabled,
           }}
         />
       )}

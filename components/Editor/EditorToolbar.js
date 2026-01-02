@@ -7,6 +7,7 @@ const EditorToolbar = ({
   activeBlock,
   activeAlign,
   setColorPickerActive,
+  toolbarDisabled = false,
 }) => {
   if (!editor) return "";
 
@@ -26,13 +27,21 @@ const EditorToolbar = ({
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }, [editor]);
 
+  const toolbarClassName = toolbarDisabled
+    ? "editor-toolbar is-disabled"
+    : "editor-toolbar";
+
   return [
-    <div className="editor-toolbar" key="editor-toolbar">
+    <div
+      className={toolbarClassName}
+      key="editor-toolbar"
+      aria-disabled={toolbarDisabled}
+    >
       {(editorSize == "large" || editorSize == "medium") && [
         <button
           key="undo-button"
           onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().chain().focus().undo().run()}
+          disabled={toolbarDisabled || !editor.can().chain().focus().undo().run()}
         >
           <svg className="icon">
             <use xlinkHref="/images/icons.svg#undo" />
@@ -41,7 +50,7 @@ const EditorToolbar = ({
         <button
           key="redo-button"
           onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().chain().focus().redo().run()}
+          disabled={toolbarDisabled || !editor.can().chain().focus().redo().run()}
         >
           <svg className="icon">
             <use xlinkHref="/images/icons.svg#redo" />
@@ -53,6 +62,7 @@ const EditorToolbar = ({
         <div className="dropdown editor-block-types" key="editor-block-types">
           <button
             title={activeBlock && activeBlock.title ? activeBlock.title : ""}
+            disabled={toolbarDisabled}
           >
             <svg className="icon">
               <use
@@ -100,7 +110,9 @@ const EditorToolbar = ({
       <button
         title="Bold"
         onClick={() => editor.chain().focus().toggleBold().run()}
-        disabled={!editor.can().chain().focus().toggleBold().run()}
+        disabled={
+          toolbarDisabled || !editor.can().chain().focus().toggleBold().run()
+        }
         className={editor.isActive("bold") ? "active" : ""}
       >
         <svg className="icon">
@@ -110,7 +122,9 @@ const EditorToolbar = ({
       <button
         title="Italic"
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        disabled={!editor.can().chain().focus().toggleItalic().run()}
+        disabled={
+          toolbarDisabled || !editor.can().chain().focus().toggleItalic().run()
+        }
         className={editor.isActive("italic") ? "active" : ""}
       >
         <svg className="icon">
@@ -121,7 +135,10 @@ const EditorToolbar = ({
         <button
           title="Underline"
           onClick={() => editor.chain().focus().toggleUnderline().run()}
-          disabled={!editor.can().chain().focus().toggleUnderline().run()}
+          disabled={
+            toolbarDisabled ||
+            !editor.can().chain().focus().toggleUnderline().run()
+          }
           className={editor.isActive("underline") ? "active" : ""}
         >
           <svg className="icon">
@@ -135,7 +152,7 @@ const EditorToolbar = ({
           key="editor-link-button"
           title="Insert link"
           onClick={setLink}
-          disabled={!setLink}
+          disabled={toolbarDisabled || !setLink}
           className={editor.isActive("link") ? "active" : ""}
         >
           <svg className="icon">
@@ -146,7 +163,7 @@ const EditorToolbar = ({
 
       {editorSize != "small" && (
         <div className="dropdown">
-          <button title="More options">
+          <button title="More options" disabled={toolbarDisabled}>
             <svg className="icon">
               <use xlinkHref="/images/icons.svg#more-horizontal" />
             </svg>
@@ -269,7 +286,10 @@ const EditorToolbar = ({
       )}
 
       {editorSize == "small" && (
-        <button onClick={() => setImageDialogActive(true)}>
+        <button
+          onClick={() => setImageDialogActive(true)}
+          disabled={toolbarDisabled}
+        >
           <svg className="icon">
             <use xlinkHref={`/images/icons.svg#image`} />
           </svg>
@@ -283,6 +303,7 @@ const EditorToolbar = ({
           title="Text color"
           onClick={() => setColorPickerActive("text-color")}
           className="color-picker"
+          disabled={toolbarDisabled}
         >
           <svg className="icon">
             <use xlinkHref="/images/icons.svg#color-text" />
@@ -301,6 +322,7 @@ const EditorToolbar = ({
           title="Text color"
           onClick={() => setColorPickerActive("highlight")}
           className="color-picker"
+          disabled={toolbarDisabled}
         >
           <svg className="icon">
             <use xlinkHref="/images/icons.svg#color-fill" />
@@ -338,6 +360,7 @@ const EditorToolbar = ({
         >
           <button
             title={activeAlign && activeAlign.title ? activeAlign.title : ""}
+            disabled={toolbarDisabled}
           >
             <svg className="icon">
               <use
@@ -374,7 +397,7 @@ const EditorToolbar = ({
           </div>
         </div>,
         <div className="dropdown" key="table-dropdown">
-          <button title="Insert table">
+          <button title="Insert table" disabled={toolbarDisabled}>
             <svg className="icon">
               <use xlinkHref={`/images/icons.svg#table`} />
             </svg>
@@ -485,7 +508,7 @@ const EditorToolbar = ({
           </div>
         </div>,
         <div className="dropdown" key="media-dropdown">
-          <button title="Insert media">
+          <button title="Insert media" disabled={toolbarDisabled}>
             <svg className="icon">
               <use xlinkHref={`/images/icons.svg#plus`} />
             </svg>
