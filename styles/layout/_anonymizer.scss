@@ -95,6 +95,11 @@
           max-height: 50em;
         }
       }
+
+      .editor-content [contenteditable] {
+        min-height: 30em;
+        max-height: 50em;
+      }
     }
 
     & > .anonymizer-results {
