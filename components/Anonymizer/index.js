@@ -556,8 +556,8 @@ const Anonymizer = () => {
     theme === THEME_DARK ? "/images/face-white.svg" : "/images/face-black.svg";
   const lawlawImageSrc =
     theme === THEME_DARK
-      ? "/images/lawlaw-dark.svg"
-      : "/images/lawlaw-light.svg";
+      ? "/images/ll-logo-white.svg"
+      : "/images/ll-logo-black.svg";
 
   const selectedBuiltinEntityTypes = useMemo(
     () =>
@@ -1817,24 +1817,14 @@ const Anonymizer = () => {
         </a>
         <span className="brand-by"> by </span>
         <a href="https://lawlaw.law" id="brand">
-          <img src={lawlawImageSrc} title="Law Law" />
+          <img
+            src={lawlawImageSrc}
+            title="Law Law"
+            style={{ width: "120px" }}
+          />
         </a>
 
         <div className="spacer" />
-
-        <select
-          id="demo-texts"
-          value={selectedDemoId}
-          onChange={handleDemoChange}
-          style={{ marginTop: ".2em" }}
-        >
-          <option value="">Select demo text...</option>
-          {demoContent.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title} ({item.language})
-            </option>
-          ))}
-        </select>
 
         <a
           role="button"
@@ -1920,6 +1910,20 @@ const Anonymizer = () => {
               )}
             </div>
             <div className="spacer" />
+
+            <select
+              id="demo-texts"
+              value={selectedDemoId}
+              onChange={handleDemoChange}
+              style={{ marginRight: ".2em" }}
+            >
+              <option value="">Select demo text...</option>
+              {demoContent.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title} ({item.language})
+                </option>
+              ))}
+            </select>
 
             <button type="button" onClick={handleReset} disabled={isSubmitting}>
               Clear
