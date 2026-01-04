@@ -10,7 +10,7 @@
     "build": "concurrently \"sass styles/light.scss public/anonymizer-light.min.css --style=compressed --no-source-map --quiet-deps\" \"sass styles/dark.scss public/anonymizer-dark.min.css --style=compressed --no-source-map --quiet-deps\"  \"webpack --config webpack.prod.js\""
   },
   "author": "Ben van den Ende",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@tiptap/core": "^2.6.6",
     "@tiptap/extension-blockquote": "^2.6.6",
